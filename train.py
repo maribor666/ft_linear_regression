@@ -1,31 +1,74 @@
-from pprint import pprint
+import argparse
+
 import numpy as np
 import matplotlib.pyplot as plt
 
-data_path = "./data.csv"
-
+def_data_path = "./data.csv"
+save_path = "./thetas.txt"
+# add: specify number of iterations(iters < 1000000). - 1 bonus
+# add option to plot or not                      	  - 2 bonus
+# add 1 another small  data set - 				      - 1 bonus
+# add specify a delimeter in dataset.                 - 1 bonus
+# add data path Specify 							  - 1 bonus
+ 
 def main():
-	data = np.genfromtxt(data_path, delimiter=',')
+	parser = argparse.ArgumentParser()
+	parser.add_argument('-iters', default=1000, help="Number of iterations to train.")
+	parser.add_argument('-plot', default='n', help="Type y for plot graph, n for not.", type=str)
+	parser.add_argument('-delimiter', default=',', help="Specify a delimeter. only ', ; : ' ' is allowed", type=str)
+	parser.add_argument('-data_path', default=def_data_path, help="Specify your own dataset.", type=str)
+	args = parser.parse_args()
+	iters = args.iters
+	delimiter = args.delimiter
+	data_path = args.data_path
+
+	if args.plot != 'y' and args.plot != 'n':
+		print("-plot argument can be only 'y' or 'n'")
+		exit()
+	if delimiter not in [',', ':', ';', ' ']:
+		print("This delimiter is not allowed.")
+		exit()
+
+	file = open(data_path, mode='r') # add try except for invalid data path
+	try:
+		x_label, y_label = file.readlines()[0].split(delimiter)
+	except ValueError:
+		print("Invalid delimeter in dataset.")
+		exit()
+	file.close()
+
+	data = np.genfromtxt(data_path, delimiter=delimiter) 
 	data = data[1:]
-	x = [row[0] for row in data]
-	y = [row[1] for row in data]
+	try:
+		x = [row[0] for row in data]
+		y = [row[1] for row in data]
+	except IndexError:
+		print("Invalid delimiter in dataset.")
+		exit()
 	x_norm, y_norm = normalize(x), normalize(y)
 	t0 = 1.0
 	t1 = 1.0
-	t0, t1 = train(x_norm, y_norm, t0, t1)
-	print(t0, t1)
+	t0, t1 = train(x_norm, y_norm, t0, t1, iters=iters)
 
-	test = t0 + t1 * normalize_elem(x, 63060)
-	test = denormalize_elem(y, test)
+	save_theta(save_path, t0, t1)
 
-	
-def denormalize_elem(vals, to_denorm):
-	return to_denorm * (max(vals) - min(vals)) + min(vals)
+	if args.plot == 'y':
+		x_regr = np.arange(0, 1, 0.01)
+		y_regr = [t0 + t1 * xi for xi in x_regr]
+		plt.figure(num="ft_linear_regression")
+		plt.plot(x_norm, y_norm, marker='h', label="Data graph")
+		plt.plot(x_regr, y_regr, label="Regression graph")
+		plt.grid(True)
+		plt.xlabel(x_label)
+		plt.ylabel(y_label)
+		plt.legend()
+		plt.show()
 
 
-def normalize_elem(vals, to_norm):
-	return (to_norm - min(vals)) / (max(vals - min(vals)))
-
+def save_theta(save_path, t0, t1):
+	file = open(save_path, mode="w+")
+	file.write(str(t0) + "\n")
+	file.write(str(t1) + "\n")
 
 def train(x, y, t0, t1, lr=0.1, iters=1000):
 	m = len(x)
